@@ -155,26 +155,38 @@ function addEquipment(equipment, user) {
 }
 
 function updateEquipment(equipment, user) {
-  equipment = normalizeEquipment(equipment || {});
+  const incoming = equipment || {};
+  const normalized = normalizeEquipment(incoming);
   const sheet = getSheet(CONFIG.EQUIPMENT_SHEET, EQUIPMENT_HEADERS);
   const values = sheet.getDataRange().getValues();
   const idColumn = EQUIPMENT_HEADERS.indexOf("equipmentId");
-  Logger.log("UPDATE EQUIPMENT SEARCH ID:");
-  Logger.log(String(equipment.equipmentId));
-  Logger.log("SHEET EQUIPMENT IDS:");
+  const targetId = String(normalized.equipmentId || "").trim();
+  const protectedFields = ["equipmentId", "photoUrls", "createdAt", "updatedAt", "createdBy"];
+
   for (let i = 1; i < values.length; i++) {
-    Logger.log(String(values[i][idColumn]));
-    if (
-      String(values[i][idColumn] || "").trim() ===
-      String(equipment.equipmentId || "").trim()
-    ) {
+    if (String(values[i][idColumn] || "").trim() === targetId) {
       const existing = rowToObject(values[i], EQUIPMENT_HEADERS);
-      const next = Object.assign({}, existing, equipment, {
-        photoUrls: JSON.stringify(equipment.photoUrls || []),
-        updatedAt: new Date().toISOString(),
-        createdBy: existing.createdBy || equipment.createdBy || (user && user.email) || ""
+      const next = Object.assign({}, existing);
+
+      // Partial-update safe: only overwrite a field if it was actually sent.
+      // (A key present with "" means the user cleared it on purpose.)
+      EQUIPMENT_HEADERS.forEach(function(header) {
+        if (protectedFields.indexOf(header) !== -1) return;
+        const sent = Object.prototype.hasOwnProperty.call(incoming, header) || String(normalized[header] || "") !== "";
+        if (sent) next[header] = normalized[header];
       });
-      sheet.getRange(i + 1, 1, 1, EQUIPMENT_HEADERS.length).setValues([EQUIPMENT_HEADERS.map((header) => next[header] || "")]);
+
+      // Photos: keep the existing ones unless photoUrls/photoUrl was sent.
+      if (Object.prototype.hasOwnProperty.call(incoming, "photoUrls") || Object.prototype.hasOwnProperty.call(incoming, "photoUrl")) {
+        next.photoUrls = JSON.stringify(normalized.photoUrls || []);
+      }
+
+      next.updatedAt = new Date().toISOString();
+      next.createdBy = existing.createdBy || normalized.createdBy || (user && user.email) || "";
+
+      sheet.getRange(i + 1, 1, 1, EQUIPMENT_HEADERS.length).setValues([EQUIPMENT_HEADERS.map(function(header) {
+        return next[header] === undefined || next[header] === null ? "" : next[header];
+      })]);
       return parseEquipment(next);
     }
   }
