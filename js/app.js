@@ -301,6 +301,7 @@
             if (photoUrl) uploadedPhotos.push(photoUrl);
           }
           const updatePayload = {
+            ...initialPayload,
             equipmentId,
             photoUrls: uploadedPhotos
           };
