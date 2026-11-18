@@ -209,6 +209,18 @@
     document.getElementById("deleteDetailBtn")?.addEventListener("click", () => deleteEquipmentAndRedirect(equipment.equipmentId));
   }
 
+  function lockForm(form) {
+    if (form.dataset.submitting === "true") return false;
+    form.dataset.submitting = "true";
+    form.querySelectorAll('[type="submit"]').forEach((btn) => { btn.disabled = true; });
+    return true;
+  }
+
+  function unlockForm(form) {
+    form.dataset.submitting = "false";
+    form.querySelectorAll('[type="submit"]').forEach((btn) => { btn.disabled = false; });
+  }
+
   async function renderEquipmentForm(edit = false) {
     const form = document.getElementById("equipmentForm");
     const params = new URLSearchParams(location.search);
@@ -266,6 +278,7 @@
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!lockForm(form)) return;
       try {
         const formData = Object.fromEntries(new FormData(form).entries());
         const photoUrls = photoItems.map((item) => item.url);
@@ -323,6 +336,7 @@
       } catch (error) {
         alert(`Save failed: ${error.message}`);
         console.error(error);
+        unlockForm(form);
       }
     });
 
@@ -355,9 +369,17 @@
     `;
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      await window.NEMS_API.addMaintenance(Object.fromEntries(new FormData(form).entries()));
-      renderMaintenanceList(equipmentId);
-      form.reset();
+      if (!lockForm(form)) return;
+      try {
+        await window.NEMS_API.addMaintenance(Object.fromEntries(new FormData(form).entries()));
+        renderMaintenanceList(equipmentId);
+        form.reset();
+      } catch (error) {
+        alert(`Save failed: ${error.message}`);
+        console.error(error);
+      } finally {
+        unlockForm(form);
+      }
     });
     renderMaintenanceList(equipmentId);
   }
@@ -486,6 +508,7 @@
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!lockForm(form)) return;
       try {
         const formData = Object.fromEntries(new FormData(form).entries());
         const payload = { ...existing, ...formData };
@@ -500,6 +523,7 @@
       } catch (error) {
         alert(`Save failed: ${error.message}`);
         console.error(error);
+        unlockForm(form);
       }
     });
 
@@ -559,6 +583,7 @@
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (!lockForm(form)) return;
       try {
         const formData = Object.fromEntries(new FormData(form).entries());
         if (edit && !formData.password) delete formData.password;
@@ -574,6 +599,7 @@
       } catch (error) {
         alert(`Save failed: ${error.message}`);
         console.error(error);
+        unlockForm(form);
       }
     });
 
